@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState, type ReactNode } from "react";
 import { LiquidMark } from "@/components/ui/LiquidMark";
+import { readConnections, writeConnections } from "@/lib/workspace";
 
 /* ---------------- session ---------------- */
 
@@ -250,6 +251,8 @@ export default function Onboarding({ children }: { children: ReactNode }) {
   const [note, setNote] = useState<string | null>(null);
   const [clientId, setClientId] = useState("");
   const [askClientId, setAskClientId] = useState(false);
+  const [askPin, setAskPin] = useState(false);
+  const [adminPin, setAdminPin] = useState("");
 
   useEffect(() => {
     setClientId(readGoogleClientId());
@@ -263,6 +266,13 @@ export default function Onboarding({ children }: { children: ReactNode }) {
 
   function finish(user: SessionUser) {
     writeUser(user);
+    if (user.provider === "google") {
+      const c = readConnections(user.email);
+      writeConnections(user.email, {
+        ...c,
+        google: { email: user.email, name: user.name, picture: user.picture, checkedAt: new Date().toISOString() },
+      });
+    }
     setStage("flash");
     setTimeout(() => setStage("open"), 1100);
   }
@@ -432,15 +442,37 @@ export default function Onboarding({ children }: { children: ReactNode }) {
                       Continue with Google
                     </button>
                     <button
-                      onClick={() =>
-                        finish({ name: "Guest", email: "guest@nspace.local", provider: "guest" })
-                      }
+                      onClick={() => setAskPin(true)}
                       className="mt-2.5 w-full rounded-[15px] bg-[#1C1C1E] py-3.5 text-[15px] font-semibold text-white active:scale-[0.99]"
                     >
-                      Continue without account
+                      Admin sign-in
                     </button>
+                    {askPin && (
+                      <div className="mt-2.5 rounded-[14px] bg-white p-2">
+                        <input
+                          type="password"
+                          value={adminPin}
+                          onChange={(e) => setAdminPin(e.target.value)}
+                          placeholder="Owner PIN"
+                          className="w-full rounded-[10px] bg-[#F2F2F7] px-3 py-2.5 text-[14px] outline-none"
+                        />
+                        <button
+                          onClick={() => {
+                            if (unlockAdmin(adminPin)) {
+                              finish({ name: "Owner", email: "visamotion365@gmail.com", provider: "guest" });
+                            } else {
+                              setNote("Wrong PIN");
+                            }
+                            setAdminPin("");
+                          }}
+                          className="mt-2 w-full rounded-[10px] bg-[#0A84FF] py-2.5 text-[13.5px] font-semibold text-white"
+                        >
+                          Unlock as admin
+                        </button>
+                      </div>
+                    )}
                     <p className="mt-3 px-1 text-center text-[11.5px] leading-snug text-[#8E8E93]">
-                      Admin tools unlock later from Settings with your PIN. Nothing is sent anywhere.
+                      One account per device. Sign in with Google for a personal workspace, or use the owner PIN for admin.
                     </p>
                   </div>
 

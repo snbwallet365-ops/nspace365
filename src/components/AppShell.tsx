@@ -11,6 +11,11 @@ import CategoryView from "@/components/views/CategoryView";
 import SearchView from "@/components/views/SearchView";
 import GitHubView from "@/components/views/GitHubView";
 import BuildView from "@/components/views/BuildView";
+import AccountView from "@/components/views/AccountView";
+import ConnectionsView from "@/components/views/ConnectionsView";
+import SkillsView from "@/components/views/SkillsView";
+import KnowledgeView from "@/components/views/KnowledgeView";
+import type { View } from "@/components/store";
 import AppSheet from "@/components/sheets/AppSheet";
 import AccountModal from "@/components/sheets/AccountModal";
 import SettingsSheet from "@/components/sheets/SettingsSheet";
@@ -50,6 +55,14 @@ function Screen() {
               <SearchView />
             ) : view === "github" ? (
               <GitHubView />
+            ) : view === "account" ? (
+              <AccountView />
+            ) : view === "connections" ? (
+              <ConnectionsView />
+            ) : view === "skills" ? (
+              <SkillsView />
+            ) : view === "knowledge" ? (
+              <KnowledgeView />
             ) : (
               <BuildView />
             )}
@@ -67,9 +80,9 @@ function Screen() {
   );
 }
 
-export default function AppShell() {
+export default function AppShell({ initialView = "today" }: { initialView?: View }) {
   return (
-    <StoreProvider>
+    <StoreProvider initialView={initialView}>
       <Onboarding>
         <Screen />
       </Onboarding>

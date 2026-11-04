@@ -7,7 +7,7 @@ import { useStore } from "@/components/store";
 import { timeAgo } from "@/lib/format";
 
 export default function TopBar({ onOpenSettings }: { onOpenSettings: () => void }) {
-  const { github, syncing, apps, go, setAccountOpen } = useStore();
+  const { github, syncing, apps, go } = useStore();
   const [, tick] = useState(0);
   useEffect(() => {
     const i = setInterval(() => tick((n) => n + 1), 30000);
@@ -50,7 +50,7 @@ export default function TopBar({ onOpenSettings }: { onOpenSettings: () => void 
         <motion.button
           whileTap={{ scale: 0.92 }}
           transition={{ duration: 0.12, ease: "easeOut" }}
-          onClick={() => setAccountOpen(true)}
+          onClick={() => go("account")}
           aria-label="Account"
           className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-[#AEAEB2] to-[#636366] ring-2 ring-white shadow-[0_2px_10px_rgba(0,0,0,0.12)]"
         >

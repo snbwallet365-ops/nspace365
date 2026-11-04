@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronDown, FolderGit2, GitBranch, MessageSquare, Pin, PinOff, Search, SquarePen, Trash2, X } from "lucide-react";
+import { BookOpen, Check, ChevronDown, FolderGit2, GitBranch, MessageSquare, Pin, PinOff, Plug, Search, Sparkles, SquarePen, Trash2, UserRound, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useStore } from "@/components/store";
 import AppIcon from "@/components/ui/AppIcon";
@@ -133,6 +133,31 @@ export default function ChatDrawer({
                   })}
                 </div>
               )}
+
+              {/* workspace pages */}
+              <p className="mb-1.5 mt-1 px-1 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">Workspace</p>
+              <div className="mb-4 grid grid-cols-2 gap-1.5">
+                {[
+                  { label: "Account", icon: UserRound, view: "account" as const },
+                  { label: "Connections", icon: Plug, view: "connections" as const },
+                  { label: "Skills", icon: Sparkles, view: "skills" as const },
+                  { label: "Knowledge", icon: BookOpen, view: "knowledge" as const },
+                ].map((it) => {
+                  const Icon = it.icon;
+                  return (
+                    <button
+                      key={it.label}
+                      onClick={() => {
+                        onClose();
+                        go(it.view);
+                      }}
+                      className="flex items-center gap-1.5 rounded-xl bg-[#F2F2F7] px-2.5 py-2 text-[12.5px] font-semibold text-[#1C1C1E] transition-colors hover:bg-[#E9E9EF]"
+                    >
+                      <Icon size={13} className="text-[#0A84FF]" /> {it.label}
+                    </button>
+                  );
+                })}
+              </div>
 
               {/* sessions */}
               <p className="mb-1.5 px-1 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">Conversations</p>

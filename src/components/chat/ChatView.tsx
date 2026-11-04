@@ -6,6 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useStore } from "@/components/store";
 import { readKeys, readModel, readProvider, readTone } from "@/components/onboarding/Onboarding";
 import { providerById, toRouteProvider } from "@/lib/providers";
+import { readKnowledge, knowledgeText, readSkills, type Skill } from "@/lib/workspace";
+import { PENDING_PROMPT_KEY } from "@/components/views/SkillsView";
+import { Sparkles } from "lucide-react";
 import type { ChatMessage, ChatSession } from "@/lib/types";
 import ChatDrawer from "./ChatDrawer";
 import MessageBubble from "./MessageBubble";
@@ -14,7 +17,8 @@ import LiquidMark from "@/components/ui/LiquidMark";
 
 
 export default function ChatView() {
-  const { apps, chatRepoRequest, clearChatRequest, toast } = useStore();
+  const { apps, chatRepoRequest, clearChatRequest, toast, user } = useStore();
+  const userEmail = user?.email ?? null;
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -29,6 +33,8 @@ export default function ChatView() {
   const fileRef = useRef<HTMLInputElement>(null);
   const recRef = useRef<{ stop: () => void } | null>(null);
   const [provider, setProvider] = useState("builtin");
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [skillsOpen, setSkillsOpen] = useState(false);
 
   const active = sessions.find((s) => s.id === activeId) ?? null;
   const repo = apps.find((a) => a.id === active?.pinnedRepoId);
@@ -64,6 +70,18 @@ export default function ChatView() {
   }, []);
 
   const providerDef = providerById(provider);
+
+  // skills + a prompt handed over from the Skills page
+  useEffect(() => {
+    setSkills(readSkills(userEmail).filter((s) => s.enabled));
+    try {
+      const pending = localStorage.getItem(PENDING_PROMPT_KEY);
+      if (pending) {
+        setInput(pending);
+        localStorage.removeItem(PENDING_PROMPT_KEY);
+      }
+    } catch {}
+  }, [userEmail]);
 
   // initial load
   useEffect(() => {
@@ -127,7 +145,8 @@ export default function ChatView() {
       const localServer = (keys.localServer || "").trim().replace(/\/$/, "");
       let knowledge = "";
       try {
-        knowledge = localStorage.getItem("nspace.build.knowledge.v1") ?? "";
+        const base = localStorage.getItem("nspace.build.knowledge.v1") ?? "";
+        knowledge = [knowledgeText(readKnowledge(userEmail)), base].filter(Boolean).join("\n");
       } catch {}
       const repoPayload = repo ? { name: repo.name, branch: repo.meta.branch, language: repo.meta.language, liveUrl: repo.url } : null;
 
@@ -186,7 +205,7 @@ export default function ChatView() {
         setSending(false);
       }
     },
-    [activeId, sending, createSession, toast, repo, attach],
+    [activeId, sending, createSession, toast, repo, attach, userEmail],
   );
 
   const patch = async (id: string, body: Record<string, unknown>) => {
@@ -260,23 +279,6 @@ export default function ChatView() {
               </motion.div>
               <p className="mt-5 text-[17px] font-semibold tracking-tight text-[#1C1C1E]">N Space Agent</p>
               <p className="mt-1 text-[13px] text-[#8E8E93]">{repo ? repo.name : "ready"}</p>
-              <div className="mt-6 grid w-full max-w-[440px] gap-2 sm:grid-cols-2">
-                {[
-                  "Push this repo to Vercel",
-                  "Review my Supabase RLS rules",
-                  "Add a voice search screen",
-                  "Fix the mobile layout",
-                ].map((t) => (
-                  <motion.button
-                    key={t}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => void send(t)}
-                    className="rounded-[16px] border border-black/[0.06] bg-white/80 px-3.5 py-3 text-left text-[13px] font-medium text-[#1C1C1E] shadow-[0_2px_10px_rgba(0,0,0,0.04)] transition-colors hover:bg-white"
-                  >
-                    {t}
-                  </motion.button>
-                ))}
-              </div>
             </motion.div>
           )}
 
@@ -314,6 +316,32 @@ export default function ChatView() {
                 </span>
               ))}
             </div>
+          )}
+          {skillsOpen && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-2 max-h-[34vh] overflow-y-auto rounded-[20px] border border-black/[0.06] bg-white p-2 shadow-[0_14px_34px_rgba(0,0,0,0.10)]">
+              {skills.length === 0 ? (
+                <p className="px-2 py-3 text-[12.5px] text-[#8E8E93]">No skills yet — add them in Account → Skills.</p>
+              ) : (
+                skills.map((sk) => (
+                  <button
+                    key={sk.id}
+                    type="button"
+                    onClick={() => {
+                      setInput((prev) => (prev ? `${prev}\n\n${sk.instruction}` : sk.instruction));
+                      setSkillsOpen(false);
+                      taRef.current?.focus();
+                    }}
+                    className="flex w-full items-start gap-2 rounded-[14px] px-2 py-2 text-left transition-colors hover:bg-black/[0.04]"
+                  >
+                    <span className="text-[15px]">{sk.emoji}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-semibold text-[#1C1C1E]">{sk.name}</span>
+                      <span className="block truncate text-[11px] text-[#8E8E93]">{sk.instruction}</span>
+                    </span>
+                  </button>
+                ))
+              )}
+            </motion.div>
           )}
           <form
             onSubmit={(e) => {
@@ -429,6 +457,14 @@ export default function ChatView() {
                 className={`grid h-8 w-8 place-items-center rounded-full transition-colors ${listening ? "bg-[#FF3B30] text-white pulse-dot" : "text-[#6C6C70] hover:bg-black/[0.06]"}`}
               >
                 <Mic size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSkillsOpen((v) => !v)}
+                aria-label="Skills"
+                className={`ml-1 flex items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-semibold transition-colors ${skillsOpen ? "bg-[#0A84FF] text-white" : "bg-black/[0.05] text-[#3C3C43]"}`}
+              >
+                <Sparkles size={11} /> Skills
               </button>
               <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-white/70 px-2 py-1 text-[10.5px] font-semibold text-[#6C6C70]">
                 <Cpu size={10} /> {providerDef.label}

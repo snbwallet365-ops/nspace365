@@ -4,7 +4,37 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { GithubState, StoreApp } from "@/lib/types";
 import { readRole, readUser, signOut, VISIBILITY_KEY, type Role, type SessionUser } from "@/components/onboarding/Onboarding";
 
-export type View = "today" | "games" | "apps" | "arcade" | "search" | "ai" | "github";
+export type View =
+  | "today"
+  | "games"
+  | "apps"
+  | "arcade"
+  | "search"
+  | "ai"
+  | "github"
+  | "account"
+  | "connections"
+  | "skills"
+  | "knowledge";
+
+const VIEW_PATH: Record<View, string> = {
+  today: "/",
+  games: "/games",
+  apps: "/projects",
+  arcade: "/arcade",
+  search: "/search",
+  ai: "/build",
+  github: "/repos",
+  account: "/account",
+  connections: "/connections",
+  skills: "/skills",
+  knowledge: "/knowledge",
+};
+
+function viewFromPath(path: string): View {
+  const found = (Object.entries(VIEW_PATH) as [View, string][]).find(([, p]) => p === path);
+  return found ? found[0] : "today";
+}
 
 interface Toast {
   id: number;
@@ -54,12 +84,12 @@ export function useStore(): StoreCtx {
   return v;
 }
 
-export function StoreProvider({ children }: { children: ReactNode }) {
+export function StoreProvider({ children, initialView = "today" }: { children: ReactNode; initialView?: View }) {
   const [apps, setApps] = useState<StoreApp[]>([]);
   const [github, setGithub] = useState<GithubState>({ connected: false });
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [view, setView] = useState<View>("today");
+  const [view, setView] = useState<View>(initialView);
   const [sheetId, setSheetId] = useState<string | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [installing, setInstalling] = useState<Record<string, number>>({});
@@ -208,10 +238,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [mutate, toast],
   );
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPop = () => setView(viewFromPath(window.location.pathname));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   const go = useCallback((v: View) => {
     setView(v);
     setSheetId(null);
     setAccountOpen(false);
+    try {
+      const path = VIEW_PATH[v] ?? "/";
+      if (window.location.pathname !== path) window.history.pushState({ view: v }, "", path);
+    } catch {
+      /* ignore */
+    }
+    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
   }, []);
 
   const openApp = useCallback(
