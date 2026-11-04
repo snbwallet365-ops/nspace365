@@ -274,7 +274,7 @@ function RepoCard({ repo, index, onOpen, onAsk }: { repo: StoreApp; index: numbe
         <div className="flex items-center gap-3">
           <AppIcon app={repo} size={56} />
           <div className="min-w-0 flex-1">
-            <button onClick={onOpen} className="block max-w-full truncate text-left text-[17px] font-semibold text-black">{repo.name}</button>
+            <button onClick={onOpen} className="line-clamp-2 max-w-full break-words text-left text-[16px] font-semibold leading-[1.2] text-black sm:text-[17px]">{repo.name}</button>
             <p className="truncate text-[13px] text-[#8E8E93]">{m.fullName}</p>
           </div>
           <GetButton app={repo} />

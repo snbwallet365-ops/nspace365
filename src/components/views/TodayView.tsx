@@ -74,7 +74,7 @@ export default function TodayView() {
                 <div className="flex items-center gap-3">
                   <AppIcon app={r} size={56} />
                   <div className="min-w-0">
-                    <p className="truncate text-[16px] font-semibold">{r.name}</p>
+                    <p className="line-clamp-2 break-words text-[16px] font-semibold leading-[1.2]">{r.name}</p>
                     <p className="flex items-center gap-1 text-[12px] text-[#8E8E93]">
                       <GitBranch size={12} /> {r.meta.branch}
                     </p>
@@ -100,11 +100,11 @@ export default function TodayView() {
             transition={{ duration: 0.24, ease: "easeOut", delay: Math.min(i * 0.04, 0.2) }}
             whileTap={{ scale: 0.97 }}
             onClick={() => openSheet(a.id)}
-            className="w-[132px] shrink-0 cursor-pointer snap-start"
+            className="w-[142px] shrink-0 cursor-pointer snap-start sm:w-[148px]"
           >
-            <AppIcon app={a} size={132} className="!rounded-[30px]" />
-            <p className="mt-2 truncate text-[15px] font-semibold text-black">{a.name}</p>
-            <p className="truncate text-[12px] text-[#8E8E93]">{a.genre}</p>
+            <AppIcon app={a} size={142} className="!h-auto !w-full aspect-square !rounded-[30px]" />
+            <p className="mt-2 line-clamp-2 break-words text-[14px] font-semibold leading-[1.2] text-black sm:text-[15px]">{a.name}</p>
+            <p className="mt-0.5 truncate text-[12px] text-[#8E8E93]">{a.genre}</p>
             <div className="mt-2">
               <GetButton app={a} />
             </div>

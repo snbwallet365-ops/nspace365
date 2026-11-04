@@ -17,7 +17,7 @@ export default function GetButton({ app, variant = "soft", large = false }: { ap
   const { installing, getApp, openApp } = useStore();
   const progress = installing[app.id];
   const isInstalling = progress !== undefined;
-  const size = large ? "h-10 min-w-[88px] px-6 text-[16px]" : "h-8 min-w-[72px] px-4 text-[15px]";
+  const size = large ? "h-11 min-w-[92px] px-6 text-[16px]" : "h-9 min-w-[74px] px-4 text-[15px] sm:h-8 sm:min-w-[72px]";
 
   const state = isInstalling ? "installing" : app.status === "installed" ? "open" : app.status === "update" ? "update" : "get";
 

@@ -48,11 +48,11 @@ export default function HeroCard({
         <h3 className="mt-1.5 max-w-[16ch] whitespace-pre-line text-[32px] font-bold leading-[1.08] tracking-tight text-white drop-shadow-sm sm:text-[38px]">{title}</h3>
       </div>
 
-      <div className="absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-2xl border border-white/40 bg-white/70 p-3 shadow-[0_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-xl">
+      <div className="absolute inset-x-3 bottom-3 flex items-center gap-2.5 rounded-2xl border border-white/40 bg-white/70 p-3 sm:gap-3 shadow-[0_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-xl">
         <AppIcon app={app} size={52} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[16px] font-semibold text-black">{app.name}</p>
-          <p className="truncate text-[13px] text-[#3C3C43]/70">{app.subtitle}</p>
+          <p className="truncate text-[16px] font-semibold leading-tight text-black">{app.name}</p>
+          <p className="line-clamp-2 text-[13px] leading-snug text-[#3C3C43]/70 sm:line-clamp-1">{app.subtitle}</p>
         </div>
         <GetButton app={app} variant="solid" />
       </div>
