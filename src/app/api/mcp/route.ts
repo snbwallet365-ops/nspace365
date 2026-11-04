@@ -1,185 +1,167 @@
 import { NextResponse } from "next/server";
-import { liveApps } from "@/lib/server/live";
+import { liveApps, findApp } from "@/lib/server/live";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Minimal Model Context Protocol server over HTTP (JSON-RPC 2.0).
- * Any MCP-capable agent can POST here to list and read the app catalogue.
+ * MCP (Model Context Protocol) server over Streamable HTTP.
+ * Paste the URL of this endpoint into ChatGPT, Gemini, Claude or Cursor and
+ * they get the N Space workspace as a tool.
  */
+
+const PROTOCOL = "2024-11-05";
+const SERVER = { name: "nspace-workspace", version: "1.0.0" };
+
+interface Rpc {
+  jsonrpc?: string;
+  id?: string | number | null;
+  method?: string;
+  params?: Record<string, unknown>;
+}
+
 const TOOLS = [
   {
-    name: "list_apps",
-    description: "List every app / repository in the N Space dashboard with live URL and metadata.",
+    name: "list_projects",
+    description: "List the projects and apps in the N Space workspace with their install status and URL.",
     inputSchema: {
       type: "object",
-      properties: {
-        query: { type: "string", description: "Optional text filter on name, description or language" },
-        limit: { type: "number", description: "Max results (default 50)" }
-      }
-    }
+      properties: { limit: { type: "number", description: "How many projects to return (max 50)" } },
+    },
   },
   {
-    name: "get_app",
-    description: "Get one app by id, e.g. gh:owner/repo.",
+    name: "get_project",
+    description: "Get full details for one project by id or name.",
     inputSchema: {
       type: "object",
-      properties: { id: { type: "string" } },
-      required: ["id"]
-    }
+      properties: { id: { type: "string", description: "Project id or name" } },
+      required: ["id"],
+    },
   },
   {
-    name: "repo_stats",
-    description: "Totals for the connected GitHub accounts: repo count, languages, latest push.",
-    inputSchema: { type: "object", properties: {} }
-  },
-  {
-    name: "chat",
-    description: "Send a prompt to the N Space build agent and get a short answer.",
+    name: "search_projects",
+    description: "Search projects by name, genre or description.",
     inputSchema: {
       type: "object",
-      properties: {
-        message: { type: "string" },
-        provider: { type: "string", enum: ["gemini", "openai", "deepseek", "local"] },
-        apiKey: { type: "string" },
-        model: { type: "string" }
-      },
-      required: ["message"]
-    }
-  }
+      properties: { query: { type: "string", description: "Free text query" } },
+      required: ["query"],
+    },
+  },
+  {
+    name: "workspace_status",
+    description: "GitHub sync state of the workspace: account, repository count and last sync time.",
+    inputSchema: { type: "object", properties: {} },
+  },
 ];
 
-type Rpc = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> };
+function text(body: unknown) {
+  return { content: [{ type: "text", text: typeof body === "string" ? body : JSON.stringify(body, null, 2) }] };
+}
 
-const ok = (id: Rpc["id"], result: unknown) => ({ jsonrpc: "2.0", id: id ?? null, result });
-const err = (id: Rpc["id"], code: number, message: string) => ({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
+async function callTool(name: string, args: Record<string, unknown>) {
+  const { apps, github } = await liveApps();
 
-async function handle(rpc: Rpc, origin: string) {
-  const id = rpc.id;
-  switch (rpc.method) {
-    case "initialize":
-      return ok(id, {
-        protocolVersion: "2025-06-18",
-        capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "nspace-dashboard", version: "1.0.0" }
-      });
-    case "notifications/initialized":
-    case "initialized":
-      return ok(id, {});
-    case "ping":
-      return ok(id, {});
-    case "tools/list":
-      return ok(id, { tools: TOOLS });
-    case "tools/call": {
-      const params = rpc.params ?? {};
-      const name = String(params.name ?? "");
-      const args = (params.arguments ?? {}) as Record<string, unknown>;
-      const { apps, github } = await liveApps();
-
-      if (name === "list_apps") {
-        const q = String(args.query ?? "").toLowerCase();
-        const limit = Number(args.limit ?? 50);
-        const items = apps
-          .filter((a) => !q || `${a.name} ${a.description} ${a.genre}`.toLowerCase().includes(q))
-          .slice(0, limit)
-          .map((a) => ({
-            id: a.id,
-            name: a.name,
-            liveUrl: a.url,
-            repo: a.meta.fullName ?? null,
-            language: a.meta.language ?? null,
-            stars: a.meta.stars ?? 0,
-            pushedAt: a.meta.pushedAt ?? a.updatedAt
-          }));
-        return ok(id, { content: [{ type: "text", text: JSON.stringify({ total: apps.length, connected: github.connected, items }, null, 2) }] });
-      }
-
-      if (name === "get_app") {
-        const app = apps.find((a) => a.id === String(args.id ?? ""));
-        return ok(id, {
-          content: [{ type: "text", text: app ? JSON.stringify(app, null, 2) : `No app with id ${String(args.id ?? "")}` }]
-        });
-      }
-
-      if (name === "repo_stats") {
-        const langs: Record<string, number> = {};
-        let latest = 0;
-        for (const a of apps) {
-          const l = String(a.meta.language ?? "unknown");
-          langs[l] = (langs[l] ?? 0) + 1;
-          const t = +new Date(String(a.meta.pushedAt ?? a.updatedAt));
-          if (t > latest) latest = t;
-        }
-        return ok(id, {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                { connected: github.connected, accounts: github.login, repos: github.repoCount ?? apps.length, languages: langs, latestPush: latest ? new Date(latest).toISOString() : null },
-                null,
-                2
-              )
-            }
-          ]
-        });
-      }
-
-      if (name === "chat") {
-        const res = await fetch(`${origin}/api/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: String(args.message ?? ""),
-            provider: args.provider ?? "local",
-            apiKey: args.apiKey,
-            model: args.model
-          }),
-          cache: "no-store"
-        });
-        const d = (await res.json()) as { assistantMessage?: { content?: string } };
-        return ok(id, { content: [{ type: "text", text: d.assistantMessage?.content ?? "(no answer)" }] });
-      }
-
-      return err(id, -32601, `Unknown tool: ${name}`);
-    }
-    default:
-      return err(id, -32601, `Unknown method: ${rpc.method ?? "(none)"}`);
+  if (name === "list_projects") {
+    const limit = Math.min(Number(args.limit ?? 20) || 20, 50);
+    return text(
+      apps.slice(0, limit).map((a) => ({
+        id: a.id,
+        name: a.name,
+        genre: a.genre,
+        status: a.status,
+        url: a.url,
+        source: a.source,
+      })),
+    );
   }
+
+  if (name === "get_project") {
+    const id = String(args.id ?? "");
+    const app = findApp(apps, id) ?? apps.find((a) => a.name.toLowerCase() === id.toLowerCase());
+    if (!app) return text({ error: `No project matches "${id}"` });
+    return text(app);
+  }
+
+  if (name === "search_projects") {
+    const q = String(args.query ?? "").toLowerCase().trim();
+    if (!q) return text({ error: "query is required" });
+    const hits = apps.filter((a) => `${a.name} ${a.genre} ${a.description ?? ""}`.toLowerCase().includes(q));
+    return text({ count: hits.length, results: hits.slice(0, 20).map((a) => ({ id: a.id, name: a.name, genre: a.genre, status: a.status, url: a.url })) });
+  }
+
+  if (name === "workspace_status") {
+    return text({
+      connected: github.connected,
+      login: github.login,
+      repositories: apps.filter((a) => a.source === "github").length,
+      projects: apps.length,
+      lastSync: github.lastSync,
+    });
+  }
+
+  return text({ error: `Unknown tool: ${name}` });
 }
 
 export async function POST(req: Request) {
-  const origin = new URL(req.url).origin;
-  const body = (await req.json().catch(() => null)) as Rpc | Rpc[] | null;
-  if (!body) return NextResponse.json(err(null, -32700, "Parse error"), { status: 400 });
+  let body: Rpc | Rpc[];
+  try {
+    body = (await req.json()) as Rpc | Rpc[];
+  } catch {
+    return NextResponse.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, { status: 400 });
+  }
 
-  const out = Array.isArray(body) ? await Promise.all(body.map((r) => handle(r, origin))) : await handle(body, origin);
-  return NextResponse.json(out, {
-    headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" }
+  const messages = Array.isArray(body) ? body : [body];
+  const responses = [];
+
+  for (const msg of messages) {
+    const id = msg.id ?? null;
+    const method = msg.method ?? "";
+
+    if (method === "initialize") {
+      responses.push({
+        jsonrpc: "2.0",
+        id,
+        result: {
+          protocolVersion: PROTOCOL,
+          capabilities: { tools: { listChanged: false } },
+          serverInfo: SERVER,
+          instructions:
+            "N Space workspace tools. Use list_projects to see apps, search_projects to find one, get_project for details and workspace_status for the GitHub sync state.",
+        },
+      });
+    } else if (method.startsWith("notifications/")) {
+      /* notifications need no response */
+    } else if (method === "ping") {
+      responses.push({ jsonrpc: "2.0", id, result: {} });
+    } else if (method === "tools/list") {
+      responses.push({ jsonrpc: "2.0", id, result: { tools: TOOLS } });
+    } else if (method === "tools/call") {
+      const p = (msg.params ?? {}) as { name?: string; arguments?: Record<string, unknown> };
+      try {
+        const result = await callTool(String(p.name ?? ""), p.arguments ?? {});
+        responses.push({ jsonrpc: "2.0", id, result });
+      } catch (err) {
+        responses.push({ jsonrpc: "2.0", id, result: { isError: true, content: [{ type: "text", text: (err as Error).message }] } });
+      }
+    } else if (method === "resources/list" || method === "prompts/list") {
+      responses.push({ jsonrpc: "2.0", id, result: method === "resources/list" ? { resources: [] } : { prompts: [] } });
+    } else if (method) {
+      responses.push({ jsonrpc: "2.0", id, error: { code: -32601, message: `Method not found: ${method}` } });
+    }
+  }
+
+  if (!responses.length) return new NextResponse(null, { status: 202 });
+  return NextResponse.json(Array.isArray(body) ? responses : responses[0], {
+    headers: { "Cache-Control": "no-store", "MCP-Protocol-Version": PROTOCOL },
   });
 }
 
-export async function GET(req: Request) {
-  const origin = new URL(req.url).origin;
+export async function GET() {
   return NextResponse.json({
-    name: "nspace-dashboard",
-    protocol: "MCP 2025-06-18 over JSON-RPC 2.0 (HTTP POST)",
-    endpoint: `${origin}/api/mcp`,
-    tools: TOOLS.map((t) => t.name),
-    example: {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/list"
-    }
-  });
-}
-
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Accept, MCP-Protocol-Version"
-    }
+    ...SERVER,
+    protocolVersion: PROTOCOL,
+    transport: "streamable-http",
+    endpoint: "/api/mcp",
+    tools: TOOLS.map((t) => ({ name: t.name, description: t.description })),
+    note: "POST JSON-RPC 2.0 to this URL (initialize → tools/list → tools/call).",
   });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BadgeCheck, Boxes, ChevronRight, Cog, KeyRound, LogOut, Plug, ShieldCheck, Sparkles, UserRound } from "lucide-react";
+import { BadgeCheck, Boxes, ChevronRight, Cog, Globe, KeyRound, LogOut, Plug, Server, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useStore } from "@/components/store";
 import { readProfile, writeProfile, type Profile } from "@/lib/workspace";
@@ -36,6 +36,8 @@ export default function AccountView() {
     { label: "Connections", note: "GitHub · Vercel · Cloudflare · Google", icon: Plug, view: "connections" as const },
     { label: "Skills", note: "Reusable agent instructions", icon: Sparkles, view: "skills" as const },
     { label: "Knowledge", note: "Notes the agent always reads", icon: Boxes, view: "knowledge" as const },
+    { label: "MCP server", note: "Use this workspace from any AI", icon: Server, view: "mcp" as const },
+    { label: "Live browser", note: "Playwright + Gemini page preview", icon: Globe, view: "browser" as const },
   ];
 
   return (

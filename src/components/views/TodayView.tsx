@@ -5,6 +5,7 @@ import { ArrowRight, GitBranch } from "lucide-react";
 import GithubMark from "@/components/ui/GithubMark";
 import { useEffect, useState } from "react";
 import { useStore } from "@/components/store";
+import HeroSlider from "@/components/ui/HeroSlider";
 import AppIcon from "@/components/ui/AppIcon";
 import AppRow from "@/components/ui/AppRow";
 import GetButton from "@/components/ui/GetButton";
@@ -31,6 +32,10 @@ export default function TodayView() {
   return (
     <div>
       <ViewHeader eyebrow={date || " "} title="Discover" />
+
+      <div className="mb-5">
+        <HeroSlider />
+      </div>
 
       <div className="grid gap-5 md:grid-cols-2">
         {lumen && (

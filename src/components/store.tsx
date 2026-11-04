@@ -15,7 +15,9 @@ export type View =
   | "account"
   | "connections"
   | "skills"
-  | "knowledge";
+  | "knowledge"
+  | "mcp"
+  | "browser";
 
 const VIEW_PATH: Record<View, string> = {
   today: "/",
@@ -29,6 +31,8 @@ const VIEW_PATH: Record<View, string> = {
   connections: "/connections",
   skills: "/skills",
   knowledge: "/knowledge",
+  mcp: "/mcp",
+  browser: "/browser",
 };
 
 function viewFromPath(path: string): View {

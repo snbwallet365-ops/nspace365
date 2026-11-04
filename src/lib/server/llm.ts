@@ -38,6 +38,33 @@ export const DEFAULT_MODELS: Record<string, string> = {
   base44: "superagent",
 };
 
+/** Server-side keys: a provider works without pasting anything when these exist. */
+export function serverKey(provider: string): string {
+  const env = process.env;
+  switch (provider) {
+    case "gemini":
+      return env.GEMINI_API_KEY_2 || env.GEMINI_API_KEY || env.GOOGLE_API_KEY || "";
+    case "openai":
+      return env.OPENAI_API_KEY || "";
+    case "anthropic":
+      return env.ANTHROPIC_API_KEY || "";
+    case "groq":
+      return env.GROQ_API_KEY || "";
+    case "openrouter":
+      return env.OPENROUTER_API_KEY || "";
+    case "mistral":
+      return env.MISTRAL_API_KEY || "";
+    case "deepseek":
+      return env.DEEPSEEK_API_KEY || "";
+    default:
+      return "";
+  }
+}
+
+export function serverKeyProviders(): string[] {
+  return ["gemini", "openai", "anthropic", "groq", "openrouter", "mistral", "deepseek"].filter((p) => Boolean(serverKey(p)));
+}
+
 export interface LlmCtx {
   key: string;
   model: string;
@@ -46,8 +73,11 @@ export interface LlmCtx {
 }
 
 export async function callLLM(provider: RouteProvider, ctx: LlmCtx, prompt: string): Promise<string> {
+  // fall back to the workspace's own server key when the user has not pasted one
+  if (!ctx.key) ctx = { ...ctx, key: serverKey(provider) };
   if (provider === "gemini") {
     const model = ctx.model || DEFAULT_MODELS.gemini;
+    if (!ctx.key) throw new Error("Gemini key missing — add GEMINI_API_KEY_2 on the server or paste one in Keys");
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(ctx.key)}`,
       {

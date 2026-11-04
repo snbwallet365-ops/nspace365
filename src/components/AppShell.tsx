@@ -15,6 +15,8 @@ import AccountView from "@/components/views/AccountView";
 import ConnectionsView from "@/components/views/ConnectionsView";
 import SkillsView from "@/components/views/SkillsView";
 import KnowledgeView from "@/components/views/KnowledgeView";
+import McpView from "@/components/views/McpView";
+import BrowserView from "@/components/views/BrowserView";
 import type { View } from "@/components/store";
 import AppSheet from "@/components/sheets/AppSheet";
 import AccountModal from "@/components/sheets/AccountModal";
@@ -63,6 +65,10 @@ function Screen() {
               <SkillsView />
             ) : view === "knowledge" ? (
               <KnowledgeView />
+            ) : view === "mcp" ? (
+              <McpView />
+            ) : view === "browser" ? (
+              <BrowserView />
             ) : (
               <BuildView />
             )}

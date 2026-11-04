@@ -51,6 +51,15 @@ export default function SettingsSheet({ open, onClose }: { open: boolean; onClos
   const modelValue = def.modelField ? ((bag as unknown as Record<string, string>)[def.modelField] ?? "") : "";
   const baseUrlValue = def.baseUrlField ? ((bag as unknown as Record<string, string>)[def.baseUrlField] ?? "") : "";
 
+  const [serverReady, setServerReady] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/keys/status")
+      .then((r) => r.json())
+      .then((d: { ready?: string[] }) => setServerReady(d.ready ?? []))
+      .catch(() => setServerReady([]));
+  }, []);
+
   const configuredCount = useMemo(
     () => CLOUD_PROVIDERS.filter((p) => ((bag as unknown as Record<string, string>)[p.keyField] ?? "").trim()).length,
     [bag],
@@ -114,7 +123,8 @@ export default function SettingsSheet({ open, onClose }: { open: boolean; onClos
               <div className="min-w-0 flex-1">
                 <p className="text-[15px] font-semibold tracking-tight text-[#1C1C1E]">Keys & connections</p>
                 <p className="text-[11.5px] text-[#8E8E93]">
-                  {configuredCount} of {CLOUD_PROVIDERS.length} providers configured · stored on this device
+                  {configuredCount} of {CLOUD_PROVIDERS.length} providers configured
+                  {serverReady.length > 0 && <span className="text-[#248A3D]"> · server key: {serverReady.join(", ")}</span>}
                 </p>
               </div>
               <button onClick={onClose} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-full bg-black/[0.05] text-[#3C3C43]">
