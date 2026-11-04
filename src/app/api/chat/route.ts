@@ -3,69 +3,25 @@ import { runAgent } from "@/lib/agent";
 import { addMessage, getSession, listMessages, touchSession } from "@/lib/server/live";
 import { knowledgeAnswer } from "@/lib/server/knowledge";
 import type { Block } from "@/lib/types";
+import { callLLM, DEFAULT_MODELS, type RouteProvider } from "@/lib/server/llm";
 
 export const dynamic = "force-dynamic";
 
-type Provider = "gemini" | "openai" | "deepseek" | "local";
+export type { RouteProvider };
 
 interface Body {
   sessionId?: string;
   message?: string;
-  provider?: Provider;
+  provider?: string;
   apiKey?: string;
   model?: string;
+  baseUrl?: string;
+  endpoint?: string;
   tone?: "concise" | "balanced" | "detailed";
   repo?: { name?: string; branch?: string; language?: string | null; liveUrl?: string } | null;
   knowledge?: string;
+  attachments?: { name?: string; content?: string }[];
 }
-
-const SYSTEMS: Record<string, string> = {
-  gemini: "You are the N Space build agent. Answer briefly and concretely about repositories, deployments and code changes.",
-  openai: "You are the N Space build agent. Answer briefly and concretely about repositories, deployments and code changes.",
-  deepseek: "You are the N Space build agent. Answer briefly and concretely about repositories, deployments and code changes."
-};
-
-async function callLLM(provider: Exclude<Provider, "local">, key: string, model: string, prompt: string) {
-  if (provider === "gemini") {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEMS.gemini }] },
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 900 }
-        }),
-        cache: "no-store"
-      }
-    );
-    if (!res.ok) throw new Error(`Gemini ${res.status}`);
-    const d = await res.json();
-    const parts = d?.candidates?.[0]?.content?.parts ?? [];
-    return parts.map((p: { text?: string }) => p.text ?? "").join("").trim();
-  }
-
-  const url = provider === "openai" ? "https://api.openai.com/v1/chat/completions" : "https://api.deepseek.com/chat/completions";
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: SYSTEMS[provider] },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.4,
-      max_tokens: 900
-    }),
-    cache: "no-store"
-  });
-  if (!res.ok) throw new Error(`${provider} ${res.status}`);
-  const d = await res.json();
-  return String(d?.choices?.[0]?.message?.content ?? "").trim();
-}
-
 
 function pickNotes(notes: string, query: string): string {
   const lines = notes
@@ -90,8 +46,8 @@ function pickNotes(notes: string, query: string): string {
 }
 
 export async function POST(req: Request) {
-  const body = (await req.json().catch(() => ({}))) as Body;
-  const text = body.message?.trim();
+  const body = (await req.json()) as Body;
+  const text = String(body.message ?? "").trim();
   if (!text) return NextResponse.json({ error: "message is required" }, { status: 400 });
 
   const session = (body.sessionId && getSession(body.sessionId)) || null;
@@ -99,29 +55,35 @@ export async function POST(req: Request) {
 
   if (session) addMessage({ sessionId, role: "user", content: text, blocks: [] });
 
-  const provider = (body.provider ?? "local") as Provider;
-  const key = body.apiKey?.trim();
-  const model =
-    body.model?.trim() ||
-    (provider === "gemini" ? "gemini-2.0-flash" : provider === "openai" ? "gpt-4o-mini" : "deepseek-chat");
+  const provider = (body.provider ?? "local") as RouteProvider;
+  const key = body.apiKey?.trim() ?? "";
+  const model = body.model?.trim() || DEFAULT_MODELS[provider] || "";
 
   const repo = body.repo ?? (session?.pinnedRepoId ? { name: session.pinnedRepoId } : null);
-  const notes = String(body.knowledge ?? "").slice(0, 4000).trim();
+  const notes = String(body.knowledge ?? "").slice(0, 6000).trim();
+
+  const attachments = (body.attachments ?? [])
+    .filter((a) => a && typeof a.content === "string" && a.content.trim())
+    .slice(0, 6)
+    .map((a) => `--- ${String(a.name ?? "file").slice(0, 80)} ---\n${String(a.content).slice(0, 12000)}`)
+    .join("\n\n");
+
   const prompt = [
     notes ? `Owner knowledge (authoritative):\n${notes}` : "",
+    attachments ? `Attached files:\n${attachments}` : "",
     repo?.name ? `Repository: ${repo.name}${repo.branch ? ` (branch ${repo.branch})` : ""}` : "",
-    `Request: ${text}`
+    `Request: ${text}`,
   ]
     .filter(Boolean)
-    .join("\n");
+    .join("\n\n");
 
   let content = "";
   let blocks: Block[] = [];
   let used = "local";
 
-  if (key && provider !== "local") {
+  if ((key || provider === "custom") && provider !== "local") {
     try {
-      content = (await callLLM(provider, key, model, prompt)) || "";
+      content = (await callLLM(provider, { key, model, baseUrl: body.baseUrl, endpoint: body.endpoint }, prompt)) || "";
       used = provider;
     } catch (err) {
       content = "";
@@ -131,7 +93,7 @@ export async function POST(req: Request) {
 
   const tone = (body.tone ?? "balanced") as "concise" | "balanced" | "detailed";
 
-  if (!content && (provider === "local" || !key)) {
+  if (!content && (provider === "local" || (!key && provider !== "anthropic"))) {
     const kb = knowledgeAnswer(text, tone, { repo: repo?.name ?? null });
     const noteHit = pickNotes(notes, text);
     if (noteHit) {
@@ -154,13 +116,13 @@ export async function POST(req: Request) {
             name: repo.name,
             language: repo.language ?? null,
             defaultBranch: repo.branch ?? "main",
-            liveUrl: repo.liveUrl
+            liveUrl: repo.liveUrl,
           }
-        : null
+        : null,
     });
     content = result.content;
     blocks = result.blocks;
-    if (!key) used = "built-in";
+    if (!key) used = provider === "local" ? "built-in" : used;
   }
 
   const assistant = addMessage({ sessionId, role: "assistant", content, blocks });
@@ -171,13 +133,13 @@ export async function POST(req: Request) {
     assistantMessage: assistant,
     session: updated,
     provider: used,
-    history: session ? listMessages(sessionId) : []
+    history: session ? listMessages(sessionId) : [],
   });
 }
 
 export async function GET() {
   return NextResponse.json({
-    providers: ["gemini", "openai", "deepseek", "local"],
-    note: "Send { message, provider, apiKey, model, sessionId } to chat with your own key."
+    providers: ["local", "gemini", "openai", "anthropic", "deepseek", "mistral", "groq", "openrouter", "base44", "custom"],
+    note: "Send { message, provider, apiKey, model, baseUrl?, endpoint?, sessionId, attachments? } to chat with your own key.",
   });
 }

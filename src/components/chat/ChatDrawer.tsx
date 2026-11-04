@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, GitBranch, MessageSquare, Pin, PinOff, Search, SquarePen, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, FolderGit2, GitBranch, MessageSquare, Pin, PinOff, Search, SquarePen, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useStore } from "@/components/store";
 import AppIcon from "@/components/ui/AppIcon";
@@ -26,6 +26,7 @@ export default function ChatDrawer({
   const active = sessions.find((s) => s.id === activeId);
   const activeRepo = repos.find((r) => r.id === active?.pinnedRepoId);
   const [q, setQ] = useState("");
+  const [reposOpen, setReposOpen] = useState(false);
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
     return t ? repos.filter((r) => `${r.name} ${r.meta.fullName ?? ""} ${r.genre}`.toLowerCase().includes(t)) : repos;
@@ -57,28 +58,63 @@ export default function ChatDrawer({
                 <SquarePen size={17} /> New chat
               </button>
 
-              {/* active context */}
-              <div className="mb-4 rounded-2xl border border-black/5 bg-[#F2F2F7] p-3.5">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">Active context</p>
+              {/* repo button — tap to browse every repo */}
+              <button
+                onClick={() => setReposOpen((v) => !v)}
+                aria-expanded={reposOpen}
+                className="mb-3 w-full rounded-2xl border border-black/5 bg-[#F2F2F7] p-3.5 text-left transition-colors hover:bg-[#EDEDF3]"
+              >
+                <p className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
+                  <FolderGit2 size={12} /> GitHub repo
+                  <span className="ml-auto flex items-center gap-1 text-[10.5px] font-semibold normal-case tracking-normal text-[#007AFF]">
+                    {repos.length} repos <ChevronDown size={13} className={`transition-transform ${reposOpen ? "rotate-180" : ""}`} />
+                  </span>
+                </p>
                 <div className="mt-2 flex items-center gap-2.5">
                   {activeRepo ? <AppIcon app={activeRepo} size={36} /> : <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-white text-[#8E8E93]"><GitBranch size={17} /></span>}
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-[14.5px] font-semibold">{activeRepo?.meta.fullName ?? "No repository pinned"}</p>
                     <p className="flex items-center gap-1 font-mono text-[12px] text-[#007AFF]">
                       <GitBranch size={12} /> {active?.branch ?? "main"}
                     </p>
                   </div>
                 </div>
-              </div>
+              </button>
 
-              {/* projects */}
-              <p className="mb-1.5 flex items-center justify-between px-1 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">
-                <span>Projects</span><span className="text-[10px] font-semibold text-[#34C759]">{repos.length} live</span>
-              </p>
-              <div className="mb-2 flex items-center gap-2 rounded-xl bg-[#F2F2F7] px-2.5">
-                <Search size={14} className="shrink-0 text-[#8E8E93]" />
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search projects" className="w-full bg-transparent py-2 text-[13.5px] outline-none placeholder:text-[#AEAEB2]" />
-              </div>
+              {/* all repos */}
+              {reposOpen && (
+                <>
+                  <div className="mb-2 flex items-center gap-2 rounded-xl bg-[#F2F2F7] px-2.5">
+                    <Search size={14} className="shrink-0 text-[#8E8E93]" />
+                    <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search all repos" className="w-full bg-transparent py-2 text-[13.5px] outline-none placeholder:text-[#AEAEB2]" autoFocus />
+                  </div>
+                  <p className="mb-1.5 px-1 text-[11px] font-bold uppercase tracking-wider text-[#8E8E93]">All repositories</p>
+                  <div className="mb-4 max-h-[38vh] space-y-0.5 overflow-y-auto">
+                    {filtered.length === 0 ? (
+                      <p className="px-2 py-3 text-[12.5px] text-[#8E8E93]">Nothing matches.</p>
+                    ) : (
+                      filtered.slice(0, 120).map((r) => {
+                        const on = r.id === active?.pinnedRepoId;
+                        return (
+                          <button
+                            key={r.id}
+                            onClick={() => {
+                              onPinRepo(on ? null : r.id);
+                              setReposOpen(false);
+                              if (!on) onClose();
+                            }}
+                            className={`flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition-colors ${on ? "bg-[#007AFF]/10" : "hover:bg-black/[0.04]"}`}
+                          >
+                            <AppIcon app={r} size={32} />
+                            <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{r.name}</span>
+                            {on && <Check size={16} className="text-[#007AFF]" />}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              )}
               {repos.length === 0 ? (
                 <button onClick={() => { onClose(); go("github"); }} className="mb-4 w-full rounded-2xl border border-dashed border-black/10 p-3 text-left text-[13px] text-[#8E8E93] hover:bg-black/[0.02]">
                   No repositories yet. <span className="font-semibold text-[#007AFF]">Sync GitHub →</span>

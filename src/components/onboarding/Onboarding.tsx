@@ -114,15 +114,48 @@ export function writeTone(t: "concise" | "balanced" | "detailed") {
 }
 
 export interface KeyBag {
+  /* model keys */
   gemini: string;
   openai: string;
+  anthropic: string;
   deepseek: string;
+  mistral: string;
+  groq: string;
+  openrouter: string;
+  base44: string;
+  customKey: string;
+  /* per-provider model overrides */
+  geminiModel: string;
+  openaiModel: string;
+  anthropicModel: string;
+  deepseekModel: string;
+  mistralModel: string;
+  groqModel: string;
+  openrouterModel: string;
+  base44Model: string;
+  customModel: string;
+  /* endpoints */
+  base44Endpoint: string;
+  customBaseUrl: string;
+  /* repo + hosting */
   github1: string;
   github2: string;
   localServer: string;
 }
 
-const EMPTY_KEYS: KeyBag = { gemini: "", openai: "", deepseek: "", github1: "", github2: "", localServer: "" };
+export const EMPTY_KEYS: KeyBag = {
+  gemini: "", openai: "", anthropic: "", deepseek: "", mistral: "", groq: "", openrouter: "", base44: "", customKey: "",
+  geminiModel: "", openaiModel: "", anthropicModel: "", deepseekModel: "", mistralModel: "", groqModel: "", openrouterModel: "", base44Model: "", customModel: "",
+  base44Endpoint: "", customBaseUrl: "",
+  github1: "", github2: "", localServer: "",
+};
+
+export function writeKeys(bag: KeyBag) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(bag));
+    window.dispatchEvent(new Event("nspace:keys"));
+  } catch {}
+}
 
 export function readKeys(): KeyBag {
   try {
@@ -132,12 +165,25 @@ export function readKeys(): KeyBag {
   return { ...EMPTY_KEYS };
 }
 
-export function readProvider(): "gemini" | "openai" | "deepseek" | "local" {
+export function readModel(bag: KeyBag, modelField?: string, fallback = ""): string {
+  if (!modelField) return fallback;
+  const v = (bag as unknown as Record<string, string>)[modelField];
+  return v && v.trim() ? v.trim() : fallback;
+}
+
+export function writeProvider(id: string) {
+  try {
+    localStorage.setItem(PROVIDER_KEY, id);
+    window.dispatchEvent(new Event("nspace:keys"));
+  } catch {}
+}
+
+export function readProvider(): string {
   try {
     const v = localStorage.getItem(PROVIDER_KEY);
-    if (v === "gemini" || v === "openai" || v === "deepseek" || v === "local") return v;
+    if (v && v.trim()) return v.trim();
   } catch {}
-  return "local";
+  return "builtin";
 }
 
 /* ---------------- google identity ---------------- */
