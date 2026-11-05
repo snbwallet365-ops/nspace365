@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BadgeCheck, Boxes, ChevronRight, Cog, Globe, KeyRound, LogOut, Plug, Server, ShieldCheck, Sparkles, UserRound } from "lucide-react";
+import { BadgeCheck, Boxes, ChevronRight, Cog, FileText, Globe, KeyRound, LogOut, Plug, ScanSearch, Server, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useStore } from "@/components/store";
 import { readProfile, writeProfile, type Profile } from "@/lib/workspace";
@@ -38,6 +38,8 @@ export default function AccountView() {
     { label: "Knowledge", note: "Notes the agent always reads", icon: Boxes, view: "knowledge" as const },
     { label: "MCP server", note: "Use this workspace from any AI", icon: Server, view: "mcp" as const },
     { label: "Live browser", note: "Playwright + Gemini page preview", icon: Globe, view: "browser" as const },
+    { label: "Site analysis", note: "Bengali report with citations", icon: ScanSearch, view: "analyze" as const },
+    { label: "PDF Studio", note: "Real A4 PDF export", icon: FileText, view: "pdf" as const },
   ];
 
   return (

@@ -17,6 +17,8 @@ import SkillsView from "@/components/views/SkillsView";
 import KnowledgeView from "@/components/views/KnowledgeView";
 import McpView from "@/components/views/McpView";
 import BrowserView from "@/components/views/BrowserView";
+import AnalyzeView from "@/components/views/AnalyzeView";
+import PdfView from "@/components/views/PdfView";
 import type { View } from "@/components/store";
 import AppSheet from "@/components/sheets/AppSheet";
 import AccountModal from "@/components/sheets/AccountModal";
@@ -69,6 +71,10 @@ function Screen() {
               <McpView />
             ) : view === "browser" ? (
               <BrowserView />
+            ) : view === "analyze" ? (
+              <AnalyzeView />
+            ) : view === "pdf" ? (
+              <PdfView />
             ) : (
               <BuildView />
             )}

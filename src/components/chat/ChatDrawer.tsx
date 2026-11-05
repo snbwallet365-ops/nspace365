@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { BookOpen, Check, ChevronDown, FolderGit2, GitBranch, Globe, MessageSquare, Pin, PinOff, Plug, Search, Server, Sparkles, SquarePen, Trash2, UserRound, X } from "lucide-react";
+import { BookOpen, Check, ChevronDown, FileText, FolderGit2, GitBranch, Globe, MessageSquare, Pin, PinOff, Plug, ScanSearch, Search, Server, Sparkles, SquarePen, Trash2, UserRound, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useStore } from "@/components/store";
 import AppIcon from "@/components/ui/AppIcon";
@@ -144,6 +144,8 @@ export default function ChatDrawer({
                   { label: "Knowledge", icon: BookOpen, view: "knowledge" as const },
                   { label: "MCP server", icon: Server, view: "mcp" as const },
                   { label: "Live browser", icon: Globe, view: "browser" as const },
+                  { label: "Site analysis", icon: ScanSearch, view: "analyze" as const },
+                  { label: "PDF Studio", icon: FileText, view: "pdf" as const },
                 ].map((it) => {
                   const Icon = it.icon;
                   return (

@@ -6,6 +6,7 @@ import GithubMark from "@/components/ui/GithubMark";
 import { useEffect, useState } from "react";
 import { useStore } from "@/components/store";
 import HeroSlider from "@/components/ui/HeroSlider";
+import DashboardCards from "@/components/ui/DashboardCards";
 import AppIcon from "@/components/ui/AppIcon";
 import AppRow from "@/components/ui/AppRow";
 import GetButton from "@/components/ui/GetButton";
@@ -37,15 +38,7 @@ export default function TodayView() {
         <HeroSlider />
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2">
-        {lumen && (
-          <div className="md:col-span-2">
-            <HeroCard app={lumen} image="/hero/hero-aurora.jpg" badge="LIVE FROM GITHUB" title={"Your repo,\non your phone."} index={0} />
-          </div>
-        )}
-        {pulse && <HeroCard app={pulse} image="/hero/hero-mint.jpg" badge="TAP TO OPEN" title={"Full app,\ninside here."} tall={false} index={1} />}
-        {sky && <HeroCard app={sky} image="/hero/hero-sunset.jpg" badge="JUST SYNCED" title={"Every commit,\none place."} tall={false} index={2} />}
-      </div>
+      <DashboardCards repos={repos} />
 
       {/* GitHub CTA */}
       <motion.section

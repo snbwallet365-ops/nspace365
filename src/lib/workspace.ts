@@ -24,6 +24,10 @@ export interface Skill {
   enabled: boolean;
   runs: number;
   updatedAt: string;
+  kind?: "skill" | "agent";
+  tools?: string[];
+  steps?: string[];
+  role?: string;
 }
 
 export interface KnowledgeEntry {
